@@ -100,10 +100,17 @@ class FetLifeTransform {
      */
     private function profile2entity ($fl_profile) {
         $e = new MaltegoEntity('maltego.Affiliation.FetLife', $fl_profile->nickname);
-        $e->addAdditionalFields('uid', 'UID', 'strict', $fl_profile->id);
-        $e->addAdditionalFields('profile_url', 'Profile URL', 'strict', $fl_profile->getPermalink());
-        $e->addAdditionalFields('network', 'Network', 'loose', 'fetlife');
+        $e->addAdditionalFields('affiliation.uid', 'UID', 'loose', $fl_profile->nickname);
+        $e->addAdditionalFields('affiliation.profile-url', 'Profile URL', 'loose', $fl_profile->getPermalink());
+        $e->addAdditionalFields('affiliation.network', 'Network', 'loose', 'FetLife');
+        $e->addAdditionalFields('fetlife.nickname', 'Nickname', 'strict', $fl_profile->nickname);
+        $e->addAdditionalFields('fetlife.id', 'ID', 'strict', $fl_profile->id);
+        $e->addAdditionalFields('fetlife.age', 'Age', 'loose', $fl_profile->age);
+        $e->addAdditionalFields('fetlife.gender', 'Gender', 'loose', $fl_profile->gender);
+        $e->addAdditionalFields('fetlife.role', 'Role', 'loose', $fl_profile->role);
+        $e->addAdditionalFields('fetlife.friendcount', 'Friend Count', 'loose', $fl_profile->num_friends);
         $e->setIconURL($fl_profile->getAvatarURL());
+        $e->setDisplayInformation('<a href="' . $fl_profile->getPermalink() . '">View profile</a> on FetLife');
         return $e;
     }
 
