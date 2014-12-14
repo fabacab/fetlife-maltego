@@ -56,8 +56,9 @@ class FetLifeTransform {
         if ($argv[2]) {
             $this->parsed_input = $this->parseFields($argv[2]);
         }
+        // TODO: Figure out a more reasonable way to estimate progress.
         $this->mt->progress(15);
-        $this->doTransform($this->input_entity_type);
+        $this->doTransform($this->input_entity_type, $this->entity_value);
     }
 
     private function parseFields ($str_input) {
@@ -70,24 +71,39 @@ class FetLifeTransform {
         return $parsed_fields;
     }
 
-    private function doTransform ($type) {
+    private function doTransform ($type, $entity_value) {
         switch ($type) {
             case 'person':
                 // TODO: Create the person transform
                 break;
+            case 'friends':
+                // Don't populate(), keeps runtime short.
+                $this->transformToFriends($entity_value, false);
+                break;
             case 'alias':
             default:
-                $fl_profile = $this->FL->getUserProfile($this->entity_value);
-                if ($fl_profile) {
-                    $mt_entity = $this->profile2entity($fl_profile);
-                    $this->mt->addEntityToMessage($mt_entity);
-                } else {
-                    $this->mt->addUIMessage("Could not get any information for {$type} {$this->entity_value} from FetLife. Try again later.");
-                }
+                $this->transformAlias($entity_value);
                 break;
         }
         $this->mt->progress(100);
         $this->mt->returnOutput();
+    }
+
+    private function transformToFriends ($entity_value) {
+        $friends = $this->FL->getFriendsOf($entity_value);
+        foreach ($friends as $friend) {
+            $this->mt->addEntityToMessage($this->toFetLifeAffiliation($friend));
+        }
+    }
+
+    private function transformAlias ($entity_value) {
+        $fl_profile = $this->FL->getUserProfile($entity_value);
+        if ($fl_profile) {
+            $mt_entity = $this->toFetLifeAffiliation($fl_profile);
+            $this->mt->addEntityToMessage($mt_entity);
+        } else {
+            $this->mt->addUIMessage("Could not get any information for {$type} {$this->entity_value} from FetLife. Try again later.");
+        }
     }
 
     /**
@@ -98,7 +114,7 @@ class FetLifeTransform {
      *
      * @return MaltegoEntity
      */
-    private function profile2entity ($fl_profile) {
+    private function toFetLifeAffiliation ($fl_profile) {
         $e = new MaltegoEntity('maltego.Affiliation.FetLife', $fl_profile->nickname);
         $e->addAdditionalFields('affiliation.uid', 'UID', 'loose', $fl_profile->nickname);
         $e->addAdditionalFields('affiliation.profile-url', 'Profile URL', 'loose', $fl_profile->getPermalink());
