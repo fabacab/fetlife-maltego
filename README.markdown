@@ -10,11 +10,11 @@ This tool requires PHP version 5.3 or greater, with [PHP's CURL extension](https
 
 We'll get these in the next step.
 
-## Installing
+## Installing and configuring
 
-This section documents how to install FetLife Maltego.
+This section documents how to install and use FetLife Maltego.
 
-### Installing from source
+### Installing and importing local transforms (recommended)
 
     git clone git://github.com/meitar/fetlife-maltego.git # Clone the code.
     cd fetlife-maltego
@@ -23,17 +23,20 @@ This section documents how to install FetLife Maltego.
     cp fl-mt-config.ini.php-sample fl-mt-config.ini.php   # Create the config file.
     vi fl-mt-config.ini.php                               # Edit the config file.
 
-## Configuration
+Then, in Maltego:
 
-This section documents configuration options availalbe to FetLife iCalendar.
+* Maltego icon -> Import -> Import Configuration
+    * Select `fetlife-maltego.mtz`, provided with this package.
 
-### File format
+### Configuring
 
-The configuration file uses [PHP's `ini` file](http://php.net/parse_ini_file) syntax.
+Before you can use the FetLife Maltego local transforms, you have to tell it which FetLife account you want to use. By default, FetLife Maltego configures `libFetLife` library is already configured to auto-select a proxy server from which to contact FetLife.com.
 
 FetLife Maltego looks for a configuration file named `fl-mt-config.ini.php` in the same directory as its main workhorse script, `FetLifeTransform.php`. The program ships with a sample configuration file called `fl-mt-config.ini.php-sample`. Rename or copy the sample file to the expected name, then enter your preferred settings.
 
-## Running
+The configuration file uses [PHP's `ini` file](http://php.net/parse_ini_file) syntax. Edit the config file in your favorite text editor and set values for the FetLife username and password you'll use to query FetLife.com.
+
+## Adding local transforms yourself (not recommended)
 
 To run FetLife Maltego's transformations in your Maltego client, you first need to add them to your list of available transforms. Follow Paterva's instructions for [Adding a new transform](https://www.paterva.com/web6/documentation/developer-local.php#6). When adding a new transform in the Local Transform Wizard, be mindful of the following settings:
 
