@@ -37,8 +37,14 @@ class FetLifeTransform {
                 );
             }
         }
-        $this->FL->logIn() OR die("Failed to login to FetLife.com. Last HTML received:\n{$this->FL->connection->cur_page}");
-        $this->mt->addUIMessage('Logged in to FetLife as ' . $this->FL->nickname . ' (ID: ' . $this->FL->id . ')');
+        if (!$this->FL->logIn()) {
+            $this->mt->addUIMessage("Failed to login to FetLife.com. Have you checked your username and password?", 'FatalError');
+            $this->mt->debug("Last HTML received:\n{$this->FL->connection->cur_page}");
+            die();
+        } else {
+            $this->mt->addUIMessage("Logged in to FetLife as {$this->FL->nickname} with ID {$this->FL->id}");
+            $this->mt->progress(10);
+        }
 
         $this->input_entity_type = basename(explode('-', $argv[0])[1], '.php');
         if (empty($this->input_entity_type)) {
@@ -50,6 +56,8 @@ class FetLifeTransform {
         if ($argv[2]) {
             $this->parsed_input = $this->parseFields($argv[2]);
         }
+        $this->mt->progress(15);
+        $this->doTransform($this->input_entity_type);
     }
 
     private function parseFields ($str_input) {
@@ -62,8 +70,8 @@ class FetLifeTransform {
         return $parsed_fields;
     }
 
-    public function doTransform () {
-        switch ($this->input_entity_type) {
+    private function doTransform ($type) {
+        switch ($type) {
             case 'person':
                 // TODO: Create the person transform
                 break;
@@ -73,9 +81,12 @@ class FetLifeTransform {
                 if ($fl_profile) {
                     $mt_entity = $this->profile2entity($fl_profile);
                     $this->mt->addEntityToMessage($mt_entity);
+                } else {
+                    $this->mt->addUIMessage("Could not get any information for {$type} {$this->entity_value} from FetLife. Try again later.");
                 }
                 break;
         }
+        $this->mt->progress(100);
         $this->mt->returnOutput();
     }
 
@@ -88,8 +99,11 @@ class FetLifeTransform {
      * @return MaltegoEntity
      */
     private function profile2entity ($fl_profile) {
-        $e = new MaltegoEntity('FetLifeKinskter', $fl_profile->nickname);
-        $e->addAdditionalFields('fetlife_id', 'FetLife ID', 'strict', $fl_profile->id);
+        $e = new MaltegoEntity('maltego.Affiliation.FetLife', $fl_profile->nickname);
+        $e->addAdditionalFields('uid', 'UID', 'strict', $fl_profile->id);
+        $e->addAdditionalFields('profile_url', 'Profile URL', 'strict', $fl_profile->getPermalink());
+        $e->addAdditionalFields('network', 'Network', 'loose', 'fetlife');
+        $e->setIconURL($fl_profile->getAvatarURL());
         return $e;
     }
 
@@ -103,4 +117,3 @@ class FetLifeTransform {
 }
 
 $fetlife_transform = new FetLifeTransform($argv);
-$fetlife_transform->doTransform();
