@@ -1,0 +1,13 @@
+; This is a sample configuration file.
+;
+;<?php
+; exit('Direct access to this file is prohibited.');
+;// EDIT BELOW THESE LINES.
+;/*
+username="YOUR_FETLIFE_USERNAME_HERE"
+password="YOUR_FETLIFE_PASSWORD_HERE"
+; Optionally, you can use a proxy to connect to FetLife.com. This can
+; be a specific HTTP(S) or SOCKS5 proxy URL, or the value "auto" to
+; instruct the libFetLife library to choose a new proxy on each run.
+; Leave this commented to make a direct connection from this machine.
+proxy="auto"
