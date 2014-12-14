@@ -78,7 +78,18 @@ class FetLifeTransform {
                 break;
             case 'friends':
                 // Don't populate(), keeps runtime short.
-                $this->transformToFriends($entity_value, false);
+                $this->transformToFriends($entity_value);
+                break;
+            case 'urls':
+                $r = $this->FL->connection->doHttpGet("/$entity_value");
+                $dom = new DOMDocument();
+                @$dom->loadHTML($r['body']);
+                foreach ($dom->getElementsByTagName('a') as $link) {
+                    // if href does not start with a fetlife.com address or fragment...
+                    if (0 === preg_match('/^(?:https?:\/\/fetlife\.com|\/|#)/', $link->getAttribute('href'))) {
+                        $this->mt->addEntityToMessage($this->toURL($link));
+                    }
+                }
                 break;
             case 'alias':
             default:
@@ -127,6 +138,17 @@ class FetLifeTransform {
         $e->addAdditionalFields('fetlife.friendcount', 'Friend Count', 'loose', $fl_profile->num_friends);
         $e->setIconURL($fl_profile->getAvatarURL());
         $e->setDisplayInformation('<a href="' . $fl_profile->getPermalink() . '">View profile</a> on FetLife');
+        return $e;
+    }
+
+    private function toURL ($a_element) {
+        $href = $a_element->getAttribute('href');
+        $e = new MaltegoEntity('maltego.URL', $href);
+        $e->addAdditionalFields('url', 'URL', 'strict', $href);
+        $e->addAdditionalFields('short-title', 'Short title', 'loose', $href);
+        if ($a_element->getAttribute('title')) {
+            $e->addAdditionalFields('title', 'Title', 'loose', $a_element->getAttribute('title'));
+        }
         return $e;
     }
 
