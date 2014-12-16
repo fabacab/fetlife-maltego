@@ -16,10 +16,10 @@ This section documents how to install and use FetLife Maltego.
 
 ### Installing and importing local transforms (recommended)
 
-    git clone git://github.com/meitar/fetlife-maltego.git # Clone the code.
+    git clone git://github.com/meitar/fetlife-maltego.git # Clone this code.
     cd fetlife-maltego
-    git submodule init                                    # Install the libs.
-    git submodule update
+    git submodule init                                    # Install the libraries,
+    git submodule update                                  # and then fetch them.
     cp fl-mt-config.ini.php-sample fl-mt-config.ini.php   # Create the config file.
     vi fl-mt-config.ini.php                               # Edit the config file.
 
@@ -36,6 +36,18 @@ FetLife Maltego looks for a configuration file named `fl-mt-config.ini.php` in t
 
 The configuration file uses [PHP's `ini` file](http://php.net/parse_ini_file) syntax. Edit the config file in your favorite text editor and set values for the FetLife username and password you'll use to query FetLife.com.
 
+## Command line use
+
+All transforms can be run from the `FetLifeTransform.php` script. To choose a transform, use the `-t` short option or the equivalent `--transform` long option. For instance, to run the `friends` transform against the FetLife user `JohnBaku`, use:
+
+    /usr/bin/php /path/to/FetLifeTransform.php --transform friends JohnBaku
+
+Alternatively, invoke the `fetlifetransform-friends.php` script as follows for the same effect:
+
+    /usr/bin/php /path/to/fetlifetransform-friends.php JohnBaku
+
+This may take a little while if a user has a lot of "friends." :P
+
 ## Adding local transforms yourself (not recommended)
 
 To run FetLife Maltego's transformations in your Maltego client, you first need to add them to your list of available transforms. Follow Paterva's instructions for [Adding a new transform](https://www.paterva.com/web6/documentation/developer-local.php#6). When adding a new transform in the Local Transform Wizard, be mindful of the following settings:
@@ -44,7 +56,7 @@ To run FetLife Maltego's transformations in your Maltego client, you first need 
     * Alias
 * In the **Command line** step, enter the following details, adjusted for your environment:
     * **Command**: `/usr/bin/php`
-    * **Parameters**: `fetlifetransform-ENTITY_TYPE.php`, where *ENTITY_TYPE* is the input entity type you selected in the previous step.
+    * **Parameters**: `fetlifetransform-TRANSFORM_NAME.php`, where *TRANSFORM_NAME* is the transform you want to invoke.
     * **Working directory**: `/path/to/fetlife-maltego`
 
 ## Troubleshooting
