@@ -26,7 +26,7 @@ class FetLifeTransform {
         $this->FL = new FetLifeUser(
             $this->fl_mt_config['username'], $this->fl_mt_config['password']
         );
-        if ($this->fl_mt_config['proxy']) {
+        if (!empty($this->fl_mt_config['proxy'])) {
             if ('auto' === $this->fl_mt_config['proxy']) {
                 $this->FL->connection->setProxy('auto');
             } else {
@@ -80,18 +80,22 @@ class FetLifeTransform {
                 // Don't populate(), keeps runtime short.
                 $this->transformToFriends($entity_value);
                 break;
+            case 'location':
+                $this->transformToLocation($entity_value, $this->parsed_input);
+                break;
             case 'urls':
                 $this->transformToUrls($entity_value);
                 break;
-            case 'entitiesner':
-                $this->transformToEntitiesNER($entity_value, $this->parsed_input);
+            case 'entitiesbycrawl':
+                $this->transformToEntitiesByCrawl($entity_value, $this->parsed_input);
                 break;
             case 'upcomingevents':
                 $this->transformToUpcomingEvents($this->parsed_input['fetlife.upcoming-events']);
                 break;
             case 'alias':
-            default:
                 $this->transformAlias($entity_value);
+            default:
+                $this->mt->addException('Not a recognized transform.');
                 break;
         }
         $this->mt->progress(100);
@@ -105,6 +109,16 @@ class FetLifeTransform {
         $links = $this->findExternalLinks($dom);
         foreach ($links as $link) {
             $this->mt->addEntityToMessage($this->toURL($link));
+        }
+    }
+
+    private function transformToLocation ($entity_value, $parsed_input) {
+        if (!empty($parsed_input['country'])) {
+            $this->mt->addEntityToMessage($this->toLocation(array(
+                'country-name' => $parsed_input['country'],
+                'locality'     => $parsed_input['city'],
+                'region'       => $parsed_input['location.area']
+            )));
         }
     }
 
@@ -125,6 +139,9 @@ class FetLifeTransform {
                 $entity = new MaltegoEntity('maltego.FetLifeObject', $event->title);
                 $entity->addAdditionalFields('fetlife.type', 'Type', 'loose', 'event');
                 $entity->addAdditionalFields('fetlife.id', 'ID', 'strict', $event->id);
+                $entity->addAdditionalFields('country', 'Country', 'loose', $event->adr['country-name']);
+                $entity->addAdditionalFields('city', 'City', 'loose', $event->adr['locality']);
+                $entity->addAdditionalFields('location.area', 'Area', 'loose', $event->adr['region']);
                 $entity->setDisplayInformation('<a href="' . $event->getPermalink() . '">View event</a> on FetLife');
                 $this->mt->addEntityToMessage($entity);
             }
@@ -134,40 +151,20 @@ class FetLifeTransform {
     /**
      * Given a fetlife.object entity, extracts as much data from the live object as it can.
      */
-    private function transformToEntitiesNER ($entity_value, $parsed_input) {
+    private function transformToEntitiesByCrawl ($entity_value, $parsed_input) {
         $obj = 'FetLife' . ucfirst($parsed_input['fetlife.type']);
         $obj = new $obj(array(
             'usr' => $this->FL,
             'id' => $parsed_input['fetlife.id']
         ));
 
-        // Get the page HTML
-        $r = $this->FL->connection->doHttpGet($obj->getUrl());
-        $dom = new DOMDocument();
-        @$dom->loadHTML($r['body']);
-
-        // Crawl for internal links we can recognize
-        $links = $this->findContentLinks($dom);
-        foreach ($links as $link) {
-            $m = array();
-            if (1 === preg_match('/(users|events)\/(\d+)$/', $link->getAttribute('href'), $m)) {
-                switch ($m[1]) {
-                    case 'users':
-                        if ($m[2] == $this->FL->id) {
-                            continue; // skip crawler account
-                        }
-                        if ($fl_profile = $this->FL->getUserProfile((int) $m[2])) {
-                            $this->mt->addEntityToMessage($this->toFetLifeAffiliation($fl_profile));
-                        }
-                        break;
-                    case 'events':
-                        // TODO
-                        break;
-                }
-            }
+        $obj->populate(true);
+        foreach ($obj->getParticipants() as $participant) {
+            $this->mt->addEntityToMessage($this->toFetLifeAffiliation($participant));
         }
-
-        // Crawl for locations
+        if ($obj->adr) {
+            $this->mt->addEntityToMessage($this->toLocation($obj->adr));
+        }
 
         // TODO:
         // Crawl for email addresses, phone numbers, or other recognizable text
@@ -202,11 +199,13 @@ class FetLifeTransform {
         $entity->addAdditionalFields('fetlife.gender', 'Gender', 'loose', $fl_profile->gender);
         $entity->addAdditionalFields('fetlife.role', 'Role', 'loose', $fl_profile->role);
         $entity->addAdditionalFields('fetlife.friendcount', 'Friend Count', 'loose', $fl_profile->num_friends);
-        $event_ids = array();
-        foreach ($fl_profile->getEvents() as $event) {
-            $event_ids[] = $event->id;
+        if ($fl_profile->getEvents()) {
+            $event_ids = array();
+            foreach ($fl_profile->getEvents() as $event) {
+                $event_ids[] = $event->id;
+            }
+            $entity->addAdditionalFields('fetlife.upcoming-events', 'Upcoming Events', 'loose', implode(',', $event_ids));
         }
-        $entity->addAdditionalFields('fetlife.upcoming-events', 'Upcoming Events', 'loose', implode(',', $event_ids));
         $entity->setIconURL($fl_profile->getAvatarURL());
         $entity->setDisplayInformation('<a href="' . $fl_profile->getPermalink() . '">View profile</a> on FetLife');
         return $entity;
@@ -223,12 +222,14 @@ class FetLifeTransform {
         return $entity;
     }
 
-    private function toLocation ($obj) {
-        $name = ('FetLifeEvent' === get_class($obj)) ? 'venue_address' : 'location';
-        $entity = new MaltegoEntity('maltego.Location', $obj->$name);
-        $entity->addAdditionalFields('country', 'Country', 'strict', $obj->adr['country-name']);
-        $entity->addAdditionalFields('city', 'City', 'strict', $obj->adr['locality']);
-        $entity->addAdditionalFields('location.area', 'Area', 'strict', $obj->adr['region']);
+    private function toLocation ($adr, $name = false) {
+        if (!$name) {
+            $name = "{$adr['locality']}, {$adr['country-name']}";
+        }
+        $entity = new MaltegoEntity('maltego.Location', $name);
+        $entity->addAdditionalFields('country', 'Country', 'strict', $adr['country-name']);
+        $entity->addAdditionalFields('city', 'City', 'strict', $adr['locality']);
+        $entity->addAdditionalFields('location.area', 'Area', 'strict', $adr['region']);
         return $entity;
     }
 
