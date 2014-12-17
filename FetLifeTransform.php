@@ -62,7 +62,6 @@ abstract class MaltegoFetLifeObject extends MaltegoFetLifeEntity {
     public function __construct ($entity_value) {
         $this->entity = new MaltegoEntity('maltego.FetLifeObject', $entity_value);
     }
-
 }
 
 class MaltegoFetLifeEventObject extends MaltegoFetLifeObject {
@@ -95,7 +94,8 @@ class MaltegoTransformFetLife {
         if ($argv[2]) {
             $this->parsed_input = $this->parseFields($argv[2]);
         }
-        $this->doTransform($this->transform, $this->entity_value);
+
+        $this->doTransform($this->transform, $this->entity_value, $this->parsed_input);
     }
 
     /**
@@ -154,7 +154,7 @@ class MaltegoTransformFetLife {
         return $parsed_fields;
     }
 
-    private function doTransform ($transform, $entity_value) {
+    private function doTransform ($transform, $entity_value, $parsed_input) {
         $this->mt->debug('Starting transform for ' . $transform);
         switch ($transform) {
             case 'person':
@@ -165,16 +165,16 @@ class MaltegoTransformFetLife {
                 $this->transformToFriends($entity_value);
                 break;
             case 'location':
-                $this->transformToLocation($entity_value, $this->parsed_input);
+                $this->transformToLocation($entity_value, $parsed_input);
                 break;
             case 'urls':
-                $this->transformToUrls($entity_value);
+                $this->transformToUrls($parsed_input);
                 break;
             case 'entitiesbycrawl':
-                $this->transformToEntitiesByCrawl($entity_value, $this->parsed_input);
+                $this->transformToEntitiesByCrawl($entity_value, $parsed_input);
                 break;
             case 'upcomingevents':
-                $this->transformToUpcomingEvents($this->parsed_input['fetlife.upcoming-events']);
+                $this->transformToUpcomingEvents($parsed_input['fetlife.upcoming-events']);
                 break;
             case 'alias':
                 $this->transformAlias($entity_value);
@@ -186,9 +186,16 @@ class MaltegoTransformFetLife {
         $this->mt->returnOutput();
     }
 
-    private function transformToUrls ($entity_value) {
-        $FL = $this->loginToFetLife();
-        $r = $FL->connection->doHttpGet("/$entity_value");
+    private function isAffiliationEntity ($parsed_input) {
+        return ('FetLife' === $parsed_input['affiliation.network']) ? true : false;
+    }
+
+    private function transformToUrls ($parsed_input) {
+        $url = ($this->isAffiliationEntity($parsed_input))
+            ? "/{$parsed_input['affiliation.uid']}"
+            : "/{$parsed_input['fetlife.type']}s/{$parsed_input['fetlife.id']}";
+        $FL  = $this->loginToFetLife();
+        $r   = $FL->connection->doHttpGet($url);
         $dom = new DOMDocument();
         @$dom->loadHTML($r['body']);
         $links = $this->findExternalLinks($dom);
@@ -198,7 +205,7 @@ class MaltegoTransformFetLife {
     }
 
     private function transformToLocation ($entity_value, $parsed_input) {
-        if ('FetLife' === $parsed_input['affiliation.network']) {
+        if ($this->isAffiliationEntity($parsed_input)) {
             $fl_profile = $this->transformAlias($entity_value);
         }
         $this->mt->addEntityToMessage($this->toLocation(array(
@@ -269,7 +276,8 @@ class MaltegoTransformFetLife {
     }
 
     private function toURL ($a_element) {
-        $href = $a_element->getAttribute('href');
+        // TODO: This is actually XML output, so, y'know....
+        $href = htmlentities($a_element->getAttribute('href'), ENT_QUOTES, 'UTF-8');
         $entity = new MaltegoEntity('maltego.URL', $href);
         $entity->addAdditionalFields('url', 'URL', 'strict', $href);
         $entity->addAdditionalFields('short-title', 'Short title', 'loose', $href);
