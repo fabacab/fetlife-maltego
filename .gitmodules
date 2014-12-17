@@ -1,3 +1,6 @@
 [submodule "lib/FetLife"]
 	path = lib/FetLife
 	url = https://github.com/meitar/libFetLife.git
+[submodule "docs"]
+	path = docs
+	url = https://github.com/meitar/fetlife-maltego.wiki.git
